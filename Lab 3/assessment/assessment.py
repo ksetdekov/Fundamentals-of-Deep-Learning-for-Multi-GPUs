@@ -19,9 +19,6 @@ from tensorflow_addons.optimizers import NovoGrad
 # Initialize Horovod
 hvd.init()
 
-tf.config.threading.set_inter_op_parallelism_threads(1)
-tf.config.threading.set_intra_op_parallelism_threads(1)
-
 # Pin to a GPU
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -34,12 +31,18 @@ parser.add_argument('--batch-size', type=int, default=64,
                     help='input batch size for training')
 parser.add_argument('--epochs', type=int, default=50,
                     help='number of epochs to train')
-parser.add_argument('--base-lr', type=float, default=.16,
+parser.add_argument('--base-lr', type=float, default=.01,
                     help='learning rate for a single GPU')
 parser.add_argument('--warmup-epochs', type=float, default=2,
                     help='number of warmup epochs')
 parser.add_argument('--momentum', type=float, default=0.9,
                     help='SGD momentum')
+parser.add_argument('--wd', type=float, default=0.000005,
+                    help='weight decay')
+parser.add_argument('--target-accuracy', type=float, default=.75,
+                    help='Target accuracy to stop training')
+parser.add_argument('--patience', type=float, default=2,
+                    help='Number of epochs that meet target before stopping')
 
 args = parser.parse_args()
 
@@ -91,7 +94,7 @@ def create_model():
 
     model = tf.keras.models.Model(inputs, outputs)
 
-    opt = NovoGrad(lr=args.base_lr, grad_averaging=True)
+    opt = tf.keras.optimizers.SGD(lr=args.base_lr)
 
     # Wrap the optimizer in a Horovod distributed optimizer
     opt = hvd.DistributedOptimizer(opt)
@@ -258,7 +261,7 @@ model.fit(datagen.flow(x_train, y_train, batch_size=args.batch_size),
           verbose=verbose,
           # avoid shuffling for reproducible training
           shuffle=False,
-          steps_per_epoch=int(len(y_train) / (args.batch_size)),
+          steps_per_epoch=int(len(y_train)) // hvd.size(),
           validation_data=(x_test, y_test),
           workers=4)
 
