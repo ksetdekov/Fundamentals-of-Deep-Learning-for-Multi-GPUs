@@ -27,11 +27,11 @@ if gpus:
 
 parser = argparse.ArgumentParser(description='CIFAR-10 Example',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--batch-size', type=int, default=64,
+parser.add_argument('--batch-size', type=int, default=128,
                     help='input batch size for training')
 parser.add_argument('--epochs', type=int, default=50,
                     help='number of epochs to train')
-parser.add_argument('--base-lr', type=float, default=.01,
+parser.add_argument('--base-lr', type=float, default=.02,
                     help='learning rate for a single GPU')
 parser.add_argument('--warmup-epochs', type=float, default=2,
                     help='number of warmup epochs')
@@ -261,7 +261,7 @@ model.fit(datagen.flow(x_train, y_train, batch_size=args.batch_size),
           verbose=verbose,
           # avoid shuffling for reproducible training
           shuffle=False,
-          steps_per_epoch=int(len(y_train)) // hvd.size(),
+          steps_per_epoch=int(len(y_train) / (args.batch_size)) // hvd.size(),
           validation_data=(x_test, y_test),
           workers=4)
 
