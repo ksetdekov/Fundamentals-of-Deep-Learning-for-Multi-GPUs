@@ -16,6 +16,10 @@ from time import time
 import horovod.tensorflow.keras as hvd
 from tensorflow_addons.optimizers import NovoGrad
 
+
+tf.config.threading.set_inter_op_parallelism_threads(0)
+tf.config.threading.set_intra_op_parallelism_threads(0)
+
 # Initialize Horovod
 hvd.init()
 
@@ -94,7 +98,7 @@ def create_model():
 
     model = tf.keras.models.Model(inputs, outputs)
 
-    opt = tf.keras.optimizers.SGD(lr=args.base_lr)
+    opt = tf.keras.optimizers.SGD(lr=args.base_lr, momentum=args.momentum)
 
     # Wrap the optimizer in a Horovod distributed optimizer
     opt = hvd.DistributedOptimizer(opt)
@@ -153,12 +157,11 @@ class PrintTotalTime(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         elapsed_time = round(time() - self.start_time, 2)
-        print("Elapsed training time through epoch {}: {}".format(epoch + 1, elapsed_time))
+        print("Elapsed training time through epoch {}: {}".format(epoch+1, elapsed_time))
 
     def on_train_end(self, logs=None):
         total_time = round(time() - self.start_time, 2)
         print("Total training time: {}".format(total_time))
-
 
 class StopAtAccuracy(tf.keras.callbacks.Callback):
     def __init__(self, train_target=0.75, val_target=0.25, patience=2, verbose=0):
@@ -187,12 +190,10 @@ class StopAtAccuracy(tf.keras.callbacks.Callback):
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and verbose == 1:
-            print(
-                'Early stopping after epoch {}. Training accuracy target ({}) and validation accuracy target ({}) met.'.format(
-                    self.stopped_epoch + 1, self.train_target, self.val_target))
-
+             print('Early stopping after epoch {}. Training accuracy target ({}) and validation accuracy target ({}) met.'.format(self.stopped_epoch + 1, self.train_target, self.val_target))
 
 def lr_schedule(epoch):
+
     if epoch < 15:
         return args.base_lr
     if epoch < 25:
